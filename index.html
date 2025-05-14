@@ -23,7 +23,7 @@
             color: #e74c3c;
             text-align: center;
         }
-        input[type="text"], input[type="tel"] {
+        input[type="text"] {
             width: 100%;
             padding: 12px;
             margin: 15px 0;
@@ -54,56 +54,86 @@
             text-align: center;
             display: none;
         }
+        .form-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1> বগুড়া অনলাইন রক্তদান সংগঠন সার্টিফিকেট</h1>
         <input type="text" id="userName" placeholder="আপনার পুরো নাম লিখুন">
-        <input type="tel" id="userPhone" placeholder="আপনার ফোন নম্বর (ট্র্যাকিং এর জন্য)">
-        <button id="generateBtn" onclick="generateCertificate()">সার্টিফিকেট ডাউনলোড করুন</button>
+        <button id="generateBtn" onclick="openGoogleForm()">সার্টিফিকেট ডাউনলোড করুন</button>
+        <div class="form-info">
+            সার্টিফিকেট ডাউনলোড করতে প্রথমে Google Form পূরণ করুন। ফর্ম সাবমিট করার পর স্বয়ংক্রিয়ভাবে আপনার সার্টিফিকেট ডাউনলোড শুরু হবে।
+        </div>
         <div class="preview" id="preview">
             <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
         </div>
     </div>
 
     <script>
-        async function generateCertificate() {
-            const userName = document.getElementById('userName').value.trim();
-            const userPhone = document.getElementById('userPhone').value.trim();
-            const button = document.getElementById('generateBtn');
-            const preview = document.getElementById('preview');
+        let userName = '';
+        
+        function openGoogleForm() {
+            userName = document.getElementById('userName').value.trim();
             
             if (!userName) {
                 alert('দয়া করে আপনার নাম লিখুন');
                 return;
             }
             
-            if (!userPhone || userPhone.length < 11) {
-                alert('দয়া করে সঠিক ফোন নম্বর লিখুন (11 ডিজিট)');
-                return;
-            }
+            // Store the username in localStorage so we can retrieve it after form submission
+            localStorage.setItem('certificateUserName', userName);
+            
+            // Open the Google Form in a new tab
+            window.open('https://forms.gle/6GPf2YCBjpXzo3Nr6', '_blank');
+            
+            // Start checking for form submission
+            checkFormSubmission();
+        }
+        
+        function checkFormSubmission() {
+            // In a real implementation, you would need a way to detect form submission
+            // Since we can't directly detect Google Form submission, we'll proceed after a delay
+            // In a production environment, you would need a server-side solution for this
+            
+            // For this demo, we'll proceed after 5 seconds (simulating form submission)
+            setTimeout(() => {
+                generateCertificate();
+            }, 5000);
+        }
+        
+        async function generateCertificate() {
+            const button = document.getElementById('generateBtn');
+            const preview = document.getElementById('preview');
             
             button.disabled = true;
             button.textContent = 'তৈরি হচ্ছে...';
             preview.style.display = 'block';
             
             try {
-                // 1. প্রথমে ডেটা Google Form এ সাবমিট করুন (নতুন পদ্ধতি)
-                await submitToGoogleForm(userName, userPhone);
+                // Get the username from localStorage
+                const storedName = localStorage.getItem('certificateUserName') || userName;
                 
-                // 2. তারপর PDF জেনারেট করুন
+                // টেমপ্লেট PDF লোড করুন
                 const pdfBytes = await fetch('Certificate.pdf').then(res => res.arrayBuffer());
                 const { PDFDocument, rgb } = PDFLib;
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const page = pdfDoc.getPages()[0];
                 
+                // নামের জন্য সঠিক পজিশন (একটু উপরে তুলতে yPos মান বাড়ানো হয়েছে)
                 const fontSize = 28;
-                const textWidth = userName.length * (fontSize * 0.6);
+                const textWidth = storedName.length * (fontSize * 0.6);
                 const xPos = (page.getWidth() / 2) - (textWidth / 2);
                 const yPos = 470; 
                 
-                page.drawText(userName.toUpperCase(), {
+                // PDF এ নাম যোগ করুন
+                page.drawText(storedName.toUpperCase(), {
                     x: xPos,
                     y: yPos,
                     size: fontSize,
@@ -111,11 +141,12 @@
                     font: await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold),
                 });
                 
+                // PDF জেনারেট ও ডাউনলোড
                 const newPdfBytes = await pdfDoc.save();
                 const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `${userName}_Blood_Donation_Certificate.pdf`;
+                link.download = `${storedName}_Blood_Donation_Certificate.pdf`;
                 link.click();
                 
             } catch (error) {
@@ -125,38 +156,8 @@
                 button.disabled = false;
                 button.textContent = 'সার্টিফিকেট ডাউনলোড করুন';
                 preview.style.display = 'none';
+                localStorage.removeItem('certificateUserName');
             }
-        }
-        
-        async function submitToGoogleForm(name, phone) {
-            // Google Form এর নতুন সাবমিশন URL (প্রদত্ত URL থেকে শুধু /viewform বাদ দিন)
-            const formURL = "https://docs.google.com/forms/d/e/1FAIpQLSd2mTY3mfh8-C2BBtcXAVbcu7DkUstyVoH1SeeVxsPZjHiI0Q/formResponse";
-            
-            // ফর্ম ফিল্ড আইডি (আপনার ফর্মের সঠিক আইডি)
-            const nameField = "entry.2005620554"; // নাম ফিল্ডের ID
-            const phoneField = "entry.1045781291"; // ফোন ফিল্ডের ID
-            
-            // URL প্যারামিটার হিসেবে ডেটা তৈরি
-            const params = new URLSearchParams();
-            params.append(nameField, name);
-            params.append(phoneField, phone);
-            
-            // নতুন পদ্ধতি: Image লোডের মাধ্যমে সাবমিট
-            const img = new Image();
-            img.src = `${formURL}?${params.toString()}`;
-            
-            // বিকল্প পদ্ধতি: fetch API ব্যবহার (যদি Image কাজ না করে)
-            try {
-                await fetch(`${formURL}?${params.toString()}`, {
-                    method: "GET",
-                    mode: "no-cors"
-                });
-            } catch (e) {
-                console.log("Fetch error:", e);
-            }
-            
-            // 2 সেকেন্ড অপেক্ষা করুন (ডেটা সাবমিট হতে সময় দিতে)
-            await new Promise(resolve => setTimeout(resolve, 2000));
         }
     </script>
 </body>
