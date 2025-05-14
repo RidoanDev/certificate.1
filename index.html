@@ -23,7 +23,7 @@
             color: #e74c3c;
             text-align: center;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="tel"] {
             width: 100%;
             padding: 12px;
             margin: 15px 0;
@@ -54,46 +54,23 @@
             text-align: center;
             display: none;
         }
-        .error {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: -10px;
-            margin-bottom: 10px;
-            display: none;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1> বগুড়া অনলাইন রক্তদান সংগঠন সার্টিফিকেট</h1>
         <input type="text" id="userName" placeholder="আপনার পুরো নাম লিখুন">
-        <input type="password" id="password" placeholder="গোপন পাসওয়ার্ড লিখুন">
-        <div id="passwordError" class="error">ভুল পাসওয়ার্ড! দয়া করে সঠিক পাসওয়ার্ড লিখুন।</div>
-        <button id="generateBtn" onclick="validatePassword()">সার্টিফিকেট ডাউনলোড করুন</button>
+        <input type="tel" id="userPhone" placeholder="আপনার ফোন নম্বর (ট্র্যাকিং এর জন্য)">
+        <button id="generateBtn" onclick="generateCertificate()">সার্টিফিকেট ডাউনলোড করুন</button>
         <div class="preview" id="preview">
             <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
         </div>
     </div>
 
     <script>
-        // Set your secret password here
-        const SECRET_PASSWORD = "BoguraBlood123";
-        
-        function validatePassword() {
-            const password = document.getElementById('password').value.trim();
-            const errorElement = document.getElementById('passwordError');
-            
-            if (password !== SECRET_PASSWORD) {
-                errorElement.style.display = 'block';
-                return;
-            }
-            
-            errorElement.style.display = 'none';
-            generateCertificate();
-        }
-        
         async function generateCertificate() {
             const userName = document.getElementById('userName').value.trim();
+            const userPhone = document.getElementById('userPhone').value.trim();
             const button = document.getElementById('generateBtn');
             const preview = document.getElementById('preview');
             
@@ -102,24 +79,30 @@
                 return;
             }
             
+            if (!userPhone || userPhone.length < 11) {
+                alert('দয়া করে সঠিক ফোন নম্বর লিখুন');
+                return;
+            }
+            
             button.disabled = true;
             button.textContent = 'তৈরি হচ্ছে...';
             preview.style.display = 'block';
             
             try {
-                // টেমপ্লেট PDF লোড করুন
+                // 1. প্রথমে ডেটা Google Form এ সাবমিট করুন
+                await trackDownload(userName, userPhone);
+                
+                // 2. তারপর PDF জেনারেট করুন
                 const pdfBytes = await fetch('Certificate.pdf').then(res => res.arrayBuffer());
                 const { PDFDocument, rgb } = PDFLib;
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const page = pdfDoc.getPages()[0];
                 
-                // নামের জন্য সঠিক পজিশন (একটু উপরে তুলতে yPos মান বাড়ানো হয়েছে)
                 const fontSize = 28;
                 const textWidth = userName.length * (fontSize * 0.6);
                 const xPos = (page.getWidth() / 2) - (textWidth / 2);
                 const yPos = 470; 
                 
-                // PDF এ নাম যোগ করুন
                 page.drawText(userName.toUpperCase(), {
                     x: xPos,
                     y: yPos,
@@ -128,7 +111,6 @@
                     font: await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold),
                 });
                 
-                // PDF জেনারেট ও ডাউনলোড
                 const newPdfBytes = await pdfDoc.save();
                 const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
                 const link = document.createElement('a');
@@ -144,6 +126,31 @@
                 button.textContent = 'সার্টিফিকেট ডাউনলোড করুন';
                 preview.style.display = 'none';
             }
+        }
+        
+        async function trackDownload(name, phone) {
+            // Google Form Submission URL (আপনার প্রদত্ত URL ব্যবহার করে)
+            const formURL = "https://docs.google.com/forms/d/e/1FAIpQLSd2mTY3mfh8-C2BBtcXAVbcu7DkUstyVoH1SeeVxsPZjHiI0Q/formResponse";
+            
+            // Form field IDs (আপনার Google Form এর ফিল্ড আইডি)
+            // এই আইডি পেতে Google Form এর সোর্স কোডে "entry." সার্চ করুন
+            const nameField = "entry.2005620554"; // নাম ফিল্ডের ID
+            const phoneField = "entry.1045781291"; // ফোন ফিল্ডের ID
+            
+            // FormData তৈরি করে সাবমিট করুন
+            const formData = new FormData();
+            formData.append(nameField, name);
+            formData.append(phoneField, phone);
+            
+            // Google Form এ ডেটা সাবমিট করুন
+            await fetch(formURL, {
+                method: "POST",
+                body: formData,
+                mode: "no-cors" // CORS ইস্যু এড়ানোর জন্য
+            });
+            
+            // নোট: Google Form থেকে রেসপন্স দেখতে পারবেন না (no-cors মোডে)
+            // কিন্তু ডেটা সাবমিট হয়ে যাবে
         }
     </script>
 </body>
