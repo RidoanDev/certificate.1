@@ -80,7 +80,7 @@
             }
             
             if (!userPhone || userPhone.length < 11) {
-                alert('দয়া করে সঠিক ফোন নম্বর লিখুন');
+                alert('দয়া করে সঠিক ফোন নম্বর লিখুন (11 ডিজিট)');
                 return;
             }
             
@@ -89,8 +89,8 @@
             preview.style.display = 'block';
             
             try {
-                // 1. প্রথমে ডেটা Google Form এ সাবমিট করুন
-                await trackDownload(userName, userPhone);
+                // 1. প্রথমে ডেটা Google Form এ সাবমিট করুন (নতুন পদ্ধতি)
+                await submitToGoogleForm(userName, userPhone);
                 
                 // 2. তারপর PDF জেনারেট করুন
                 const pdfBytes = await fetch('Certificate.pdf').then(res => res.arrayBuffer());
@@ -128,29 +128,35 @@
             }
         }
         
-        async function trackDownload(name, phone) {
-            // Google Form Submission URL (আপনার প্রদত্ত URL ব্যবহার করে)
+        async function submitToGoogleForm(name, phone) {
+            // Google Form এর নতুন সাবমিশন URL (প্রদত্ত URL থেকে শুধু /viewform বাদ দিন)
             const formURL = "https://docs.google.com/forms/d/e/1FAIpQLSd2mTY3mfh8-C2BBtcXAVbcu7DkUstyVoH1SeeVxsPZjHiI0Q/formResponse";
             
-            // Form field IDs (আপনার Google Form এর ফিল্ড আইডি)
-            // এই আইডি পেতে Google Form এর সোর্স কোডে "entry." সার্চ করুন
+            // ফর্ম ফিল্ড আইডি (আপনার ফর্মের সঠিক আইডি)
             const nameField = "entry.2005620554"; // নাম ফিল্ডের ID
             const phoneField = "entry.1045781291"; // ফোন ফিল্ডের ID
             
-            // FormData তৈরি করে সাবমিট করুন
-            const formData = new FormData();
-            formData.append(nameField, name);
-            formData.append(phoneField, phone);
+            // URL প্যারামিটার হিসেবে ডেটা তৈরি
+            const params = new URLSearchParams();
+            params.append(nameField, name);
+            params.append(phoneField, phone);
             
-            // Google Form এ ডেটা সাবমিট করুন
-            await fetch(formURL, {
-                method: "POST",
-                body: formData,
-                mode: "no-cors" // CORS ইস্যু এড়ানোর জন্য
-            });
+            // নতুন পদ্ধতি: Image লোডের মাধ্যমে সাবমিট
+            const img = new Image();
+            img.src = `${formURL}?${params.toString()}`;
             
-            // নোট: Google Form থেকে রেসপন্স দেখতে পারবেন না (no-cors মোডে)
-            // কিন্তু ডেটা সাবমিট হয়ে যাবে
+            // বিকল্প পদ্ধতি: fetch API ব্যবহার (যদি Image কাজ না করে)
+            try {
+                await fetch(`${formURL}?${params.toString()}`, {
+                    method: "GET",
+                    mode: "no-cors"
+                });
+            } catch (e) {
+                console.log("Fetch error:", e);
+            }
+            
+            // 2 সেকেন্ড অপেক্ষা করুন (ডেটা সাবমিট হতে সময় দিতে)
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
     </script>
 </body>
