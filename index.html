@@ -63,6 +63,10 @@
             margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid #eee;
+            display: none;
+        }
+        .admin-login {
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -73,45 +77,78 @@
         <div id="errorMessage" class="error"></div>
         
         <input type="text" id="userName" placeholder="আপনার পুরো নাম লিখুন">
-        <input type="password" id="accessCode" placeholder="অ্যাক্সেস কোড (প্রযোজ্য ক্ষেত্রে)">
+        <input type="password" id="accessCode" placeholder="অ্যাক্সেস কোড">
         <button id="generateBtn" onclick="generateCertificate()">সার্টিফিকেট ডাউনলোড করুন</button>
         
         <div class="preview" id="preview">
             <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
         </div>
         
-        <!-- Admin section (hidden by default) -->
-        <div class="admin-section" id="adminSection" style="display: none;">
-            <h3>অ্যাডমিন কন্ট্রোল</h3>
-            <input type="password" id="adminPassword" placeholder="অ্যাডমিন পাসওয়ার্ড">
-            <button onclick="toggleAdminMode()">প্রবেশ করুন</button>
-            <div id="adminControls" style="display: none; margin-top: 15px;">
+        <!-- Admin Login Section -->
+        <div class="admin-login">
+            <input type="password" id="adminPasswordInput" placeholder="অ্যাডমিন পাসওয়ার্ড">
+            <button onclick="checkAdminPassword()">অ্যাডমিন লগইন</button>
+        </div>
+        
+        <!-- Admin Controls (Hidden by default) -->
+        <div class="admin-section" id="adminSection">
+            <h3>অ্যাডমিন কন্ট্রোল প্যানেল</h3>
+            <div id="adminControls">
                 <input type="text" id="newAccessCode" placeholder="নতুন অ্যাক্সেস কোড">
-                <button onclick="updateAccessCode()">অ্যাক্সেস কোড আপডেট করুন</button>
-                <button onclick="resetAccessCode()">অ্যাক্সেস কোড রিসেট করুন</button>
+                <button onclick="updateAccessCode()">কোড আপডেট করুন</button>
+                <button onclick="resetAccessCode()">কোড রিসেট করুন</button>
+                <div id="currentCodeDisplay" style="margin-top: 10px;"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration - In a real app, these would be stored securely server-side
-        let currentAccessCode = "BLOOD123"; // Default access code
-        const adminPassword = "ADMIN@BOGRA"; // Admin password
-        
-        // Check if admin mode is enabled (for demo purposes)
-        const urlParams = new URLSearchParams(window.location.search);
-        const adminParam = urlParams.get('admin');
-        
-        if (adminParam === 'true') {
-            document.getElementById('adminSection').style.display = 'block';
-        }
-        
+        // Hardcoded ADMIN password (change this to your own strong password)
+        const HARDCODED_ADMIN_PASSWORD = "B0GR4@DM1N#2024";
+        let currentAccessCode = localStorage.getItem('bloodAccessCode') || "BLOOD123";
+        let isAdminLoggedIn = false;
+
+        // Display current access code if available
+        updateCurrentCodeDisplay();
+
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
             setTimeout(() => errorDiv.textContent = '', 5000);
         }
-        
+
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.color = 'green';
+            errorDiv.textContent = message;
+            setTimeout(() => {
+                errorDiv.textContent = '';
+                errorDiv.style.color = 'red';
+            }, 5000);
+        }
+
+        function updateCurrentCodeDisplay() {
+            const display = document.getElementById('currentCodeDisplay');
+            if (currentAccessCode) {
+                display.innerHTML = `<strong>বর্তমান অ্যাক্সেস কোড:</strong> ${currentAccessCode}`;
+            } else {
+                display.innerHTML = `<strong>অ্যাক্সেস কোড সক্রিয় নেই (যেকেউ ডাউনলোড করতে পারবে)</strong>`;
+            }
+        }
+
+        function checkAdminPassword() {
+            const enteredPassword = document.getElementById('adminPasswordInput').value;
+            
+            if (enteredPassword === HARDCODED_ADMIN_PASSWORD) {
+                isAdminLoggedIn = true;
+                document.getElementById('adminSection').style.display = 'block';
+                document.getElementById('adminPasswordInput').value = '';
+                showSuccess('অ্যাডমিন হিসেবে লগইন成功!');
+            } else {
+                showError('ভুল পাসওয়ার্ড! শুধুমাত্র অ্যাডমিন একসেস করতে পারবেন');
+            }
+        }
+
         async function generateCertificate() {
             const userName = document.getElementById('userName').value.trim();
             const userAccessCode = document.getElementById('accessCode').value.trim();
@@ -123,7 +160,7 @@
                 return;
             }
             
-            // Check access code (if required)
+            // Check access code if one is set
             if (currentAccessCode && userAccessCode !== currentAccessCode) {
                 showError('অবৈধ অ্যাক্সেস কোড। দয়া করে সঠিক কোড দিন।');
                 return;
@@ -134,19 +171,19 @@
             preview.style.display = 'block';
             
             try {
-                // টেমপ্লেট PDF লোড করুন
+                // Load template PDF
                 const pdfBytes = await fetch('Certificate.pdf').then(res => res.arrayBuffer());
                 const { PDFDocument, rgb } = PDFLib;
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const page = pdfDoc.getPages()[0];
                 
-                // নামের জন্য সঠিক পজিশন (একটু উপরে তুলতে yPos মান বাড়ানো হয়েছে)
+                // Calculate position for name
                 const fontSize = 28;
                 const textWidth = userName.length * (fontSize * 0.6);
                 const xPos = (page.getWidth() / 2) - (textWidth / 2);
                 const yPos = 470; 
                 
-                // PDF এ নাম যোগ করুন
+                // Add name to PDF
                 page.drawText(userName.toUpperCase(), {
                     x: xPos,
                     y: yPos,
@@ -155,16 +192,16 @@
                     font: await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold),
                 });
                 
-                // Add security watermark with user info (hidden but detectable)
-                page.drawText(`Verified: ${new Date().toISOString()} | User: ${userName}`, {
+                // Add security watermark
+                page.drawText(`Verified: ${new Date().toLocaleString()} | User: ${userName}`, {
                     x: 50,
                     y: 30,
                     size: 8,
-                    color: rgb(0.9, 0.9, 0.9), // Very light gray (almost invisible)
+                    color: rgb(0.9, 0.9, 0.9),
                     opacity: 0.2,
                 });
                 
-                // PDF জেনারেট ও ডাউনলোড
+                // Generate and download PDF
                 const newPdfBytes = await pdfDoc.save();
                 const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
                 const link = document.createElement('a');
@@ -172,11 +209,10 @@
                 link.download = `${userName}_Blood_Donation_Certificate.pdf`;
                 link.click();
                 
-                // Log the download (in a real app, this would be sent to a server)
-                console.log(`Certificate downloaded for: ${userName} at ${new Date()}`);
+                console.log(`Certificate generated for: ${userName}`);
                 
             } catch (error) {
-                console.error('ত্রুটি:', error);
+                console.error('Error:', error);
                 showError('সার্টিফিকেট তৈরি করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।');
             } finally {
                 button.disabled = false;
@@ -185,33 +221,34 @@
             }
         }
         
-        // Admin functions
-        function toggleAdminMode() {
-            const passwordInput = document.getElementById('adminPassword').value;
-            const adminControls = document.getElementById('adminControls');
-            
-            if (passwordInput === adminPassword) {
-                adminControls.style.display = adminControls.style.display === 'none' ? 'block' : 'none';
-                document.getElementById('adminPassword').value = '';
-            } else {
-                showError('ভুল অ্যাডমিন পাসওয়ার্ড');
-            }
-        }
-        
         function updateAccessCode() {
+            if (!isAdminLoggedIn) {
+                showError('অ্যাডমিন হিসেবে লগইন করুন প্রথমে');
+                return;
+            }
+            
             const newCode = document.getElementById('newAccessCode').value.trim();
             if (newCode) {
                 currentAccessCode = newCode;
-                showError('অ্যাক্সেস কোড আপডেট করা হয়েছে!');
+                localStorage.setItem('bloodAccessCode', newCode);
+                showSuccess('অ্যাক্সেস কোড সফলভাবে আপডেট করা হয়েছে!');
                 document.getElementById('newAccessCode').value = '';
+                updateCurrentCodeDisplay();
             } else {
                 showError('দয়া করে একটি বৈধ কোড লিখুন');
             }
         }
         
         function resetAccessCode() {
+            if (!isAdminLoggedIn) {
+                showError('অ্যাডমিন হিসেবে লগইন করুন প্রথমে');
+                return;
+            }
+            
             currentAccessCode = "";
-            showError('অ্যাক্সেস কোড রিসেট করা হয়েছে (কোন কোড প্রয়োজন হবে না)');
+            localStorage.removeItem('bloodAccessCode');
+            showSuccess('অ্যাক্সেস কোড রিসেট করা হয়েছে (কোন কোড প্রয়োজন হবে না)');
+            updateCurrentCodeDisplay();
         }
     </script>
 </body>
