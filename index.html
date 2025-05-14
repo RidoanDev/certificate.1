@@ -23,7 +23,7 @@
             color: #e74c3c;
             text-align: center;
         }
-        input[type="text"] {
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
             margin: 15px 0;
@@ -54,19 +54,44 @@
             text-align: center;
             display: none;
         }
+        .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1> বগুড়া অনলাইন রক্তদান সংগঠন সার্টিফিকেট</h1>
         <input type="text" id="userName" placeholder="আপনার পুরো নাম লিখুন">
-        <button id="generateBtn" onclick="generateCertificate()">সার্টিফিকেট ডাউনলোড করুন</button>
+        <input type="password" id="password" placeholder="গোপন পাসওয়ার্ড লিখুন">
+        <div id="passwordError" class="error">ভুল পাসওয়ার্ড! দয়া করে সঠিক পাসওয়ার্ড লিখুন।</div>
+        <button id="generateBtn" onclick="validatePassword()">সার্টিফিকেট ডাউনলোড করুন</button>
         <div class="preview" id="preview">
             <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
         </div>
     </div>
 
     <script>
+        // Set your secret password here
+        const SECRET_PASSWORD = "BoguraBlood123";
+        
+        function validatePassword() {
+            const password = document.getElementById('password').value.trim();
+            const errorElement = document.getElementById('passwordError');
+            
+            if (password !== SECRET_PASSWORD) {
+                errorElement.style.display = 'block';
+                return;
+            }
+            
+            errorElement.style.display = 'none';
+            generateCertificate();
+        }
+        
         async function generateCertificate() {
             const userName = document.getElementById('userName').value.trim();
             const button = document.getElementById('generateBtn');
