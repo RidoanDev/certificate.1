@@ -59,18 +59,16 @@
             margin-top: 20px;
             text-align: center;
         }
-        #formFrame {
-            width: 100%;
-            height: 500px;
-            border: none;
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e74c3c;
         }
-        #downloadBtn {
-            display: none;
+        #confirmationCheck {
             margin-top: 20px;
-            background-color: #27ae60;
-        }
-        #downloadBtn:hover {
-            background-color: #219653;
+            display: none;
         }
     </style>
 </head>
@@ -78,20 +76,30 @@
     <div class="container">
         <h1>বগুড়া অনলাইন রক্তদান সংগঠন সার্টিফিকেট</h1>
         <input type="text" id="userName" placeholder="আপনার পুরো নাম লিখুন">
-        <button id="generateBtn" onclick="openForm()">পরের ধাপে এগিয়ে যান</button>
-        <div class="preview" id="preview">
-            <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
-        </div>
+        <button id="openFormBtn" onclick="openForm()">ফর্ম পূরণ করতে এখানে ক্লিক করুন</button>
         
         <div id="formContainer">
-            <h2>দয়া করে নিচের ফর্মটি পূরণ করে 'Submit' বাটনে ক্লিক করুন</h2>
-            <iframe id="formFrame" src="about:blank"></iframe>
-            <button id="downloadBtn" onclick="generateCertificate()">সার্টিফিকেট ডাউনলোড করুন</button>
+            <div class="instructions">
+                <p>দয়া করে Google Form পূরণ করুন এবং সাবমিট করুন। ফর্ম সাবমিট করার পর এই পৃষ্ঠায় ফিরে আসুন।</p>
+                <p>ফর্ম সাবমিট করার পর নিচের বাটনে ক্লিক করে আপনার সার্টিফিকেট ডাউনলোড করুন।</p>
+            </div>
+            
+            <div id="confirmationCheck">
+                <input type="checkbox" id="formSubmitted" onchange="toggleDownloadButton()">
+                <label for="formSubmitted">আমি Google Form সফলভাবে সাবমিট করেছি</label>
+            </div>
+            
+            <button id="downloadBtn" onclick="generateCertificate()" disabled>সার্টিফিকেট ডাউনলোড করুন</button>
+        </div>
+        
+        <div class="preview" id="preview">
+            <p>আপনার সার্টিফিকেট তৈরি হচ্ছে...</p>
         </div>
     </div>
 
     <script>
         let userName = '';
+        let formWindow = null;
         
         function openForm() {
             userName = document.getElementById('userName').value.trim();
@@ -101,51 +109,31 @@
                 return;
             }
             
-            // Show the form
+            // Show the form container and instructions
             document.getElementById('formContainer').style.display = 'block';
-            document.getElementById('formFrame').src = 'https://docs.google.com/forms/d/e/1FAIpQLSd2mTY3mfh8-C2BBtcXAVbcu7DkUstyVoH1SeeVxsPZjHiI0Q/viewform?embedded=true';
+            document.getElementById('confirmationCheck').style.display = 'block';
             
-            // Scroll to form
+            // Open Google Form in a new tab/window
+            formWindow = window.open('https://docs.google.com/forms/d/e/1FAIpQLSd2mTY3mfh8-C2BBtcXAVbcu7DkUstyVoH1SeeVxsPZjHiI0Q/viewform', '_blank');
+            
+            // Scroll to form container
             document.getElementById('formContainer').scrollIntoView();
             
-            // Start checking for form submission every 2 seconds
-            checkFormSubmission();
+            // Disable the open form button
+            document.getElementById('openFormBtn').disabled = true;
         }
         
-        function checkFormSubmission() {
-            // Check if the form has been submitted (using localStorage as a flag)
-            if (localStorage.getItem('formSubmitted') === 'true') {
-                document.getElementById('downloadBtn').style.display = 'block';
-                return;
-            }
-            
-            // Check if the form has been submitted by checking the iframe URL
-            try {
-                const iframe = document.getElementById('formFrame');
-                const iframeUrl = iframe.contentWindow.location.href;
-                
-                // Google Forms shows a thank you page after submission
-                if (iframeUrl.includes('formResponse')) {
-                    localStorage.setItem('formSubmitted', 'true');
-                    document.getElementById('downloadBtn').style.display = 'block';
-                    return;
-                }
-            } catch (e) {
-                // Cross-origin security error, we can't access the iframe URL directly
-                // So we'll use a fallback method
-            }
-            
-            // If not submitted yet, check again in 2 seconds
-            setTimeout(checkFormSubmission, 2000);
+        function toggleDownloadButton() {
+            const isChecked = document.getElementById('formSubmitted').checked;
+            document.getElementById('downloadBtn').disabled = !isChecked;
         }
         
         async function generateCertificate() {
-            const button = document.getElementById('generateBtn');
+            const button = document.getElementById('downloadBtn');
             const preview = document.getElementById('preview');
-            const downloadBtn = document.getElementById('downloadBtn');
             
-            downloadBtn.disabled = true;
-            downloadBtn.textContent = 'তৈরি হচ্ছে...';
+            button.disabled = true;
+            button.textContent = 'তৈরি হচ্ছে...';
             preview.style.display = 'block';
             
             try {
@@ -182,8 +170,8 @@
                 console.error('ত্রুটি:', error);
                 alert('সার্টিফিকেট তৈরি করতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।');
             } finally {
-                downloadBtn.disabled = false;
-                downloadBtn.textContent = 'সার্টিফিকেট ডাউনলোড করুন';
+                button.disabled = false;
+                button.textContent = 'সার্টিফিকেট ডাউনলোড করুন';
                 preview.style.display = 'none';
             }
         }
